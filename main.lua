@@ -82,9 +82,11 @@ function love.update(dt)
 end
 
 function love.draw(dt)
-    drawPlayer(player.pos.x, player.pos.y, player.rotation)
+    local camPosition = vec(-400, -400) + player.pos:clone()
+    drawPlayer(player.pos.x - camPosition.x, player.pos.y - camPosition.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
-	drawAsteroid(asteroid.pos.x, asteroid.pos.y, asteroid.rotation, asteroid.corners)
+	drawAsteroid(asteroid.pos.x - camPosition.x, asteroid.pos.y - camPosition.y, 
+		     asteroid.rotation, asteroid.corners)
     end
 end
 
