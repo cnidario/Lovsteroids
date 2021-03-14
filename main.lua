@@ -1,12 +1,13 @@
 local vec = require('vector')
 world = { width = 2000, height = 2000 }
 
--- player is a triangle, centered
+playerPolygonPoints = { vec(-15,-15), vec(25,0), vec(-15,15) }
+-- player is a triangle, a bit centered
 function drawPlayer(x, y, rotation) 
     love.graphics.setColor(0, 0.25, 0.75)
-    local p1 = vec(x,y) + vec(-15,-15):rotate(rotation)
-    local p2 = vec(x,y) + vec(25,0):rotate(rotation)
-    local p3 = vec(x,y) + vec(-15,15):rotate(rotation)
+    local p1 = vec(x,y) + playerPolygonPoints[1]:rotate(rotation)
+    local p2 = vec(x,y) + playerPolygonPoints[2]:rotate(rotation)
+    local p3 = vec(x,y) + playerPolygonPoints[3]:rotate(rotation)
     love.graphics.line(p1.x,p1.y,p2.x,p2.y,p3.x,p3.y,p1.x,p1.y)
 end
 player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0 }
@@ -18,36 +19,76 @@ function lerp(start, finish, percentage)
 end
 function clamp(val, min, max) return (val < min) and min or (val > max) and max or val end
 
+-- Polygon collision testing using SAT theorem
+-- polygon = { pos, points }
+function checkCollisionSAT(polygon1, polygon2)
+    local normals = {}
+    for i = 1, #polygon1.points do
+	local j = (i % #polygon1.points) + 1
+	local p1 = polygon1.points[i] + polygon1.pos
+	local p2 = polygon1.points[j] + polygon1.pos
+	table.insert(normals, vec(-(p2.y-p1.y), p2.x-p1.x):norm())
+    end
+    for i, normal in pairs(normals) do
+	local x1, x2 = calcProjection(normal, polygon1.points, polygon1.pos)
+	local y1, y2 = calcProjection(normal, polygon2.points, polygon2.pos)
+	-- check if *not* overlap in the axis
+	-- read as: if x1 inside y; x2 inside y ...
+	if not ((x1 > y1 and x1 < y2) or (x2 > y1 and x2 < y2)
+	or (y1 > x1 and y1 < x2)) then
+	    -- not overlap! === no collision
+	    return false
+	end -- else we have to keep checking
+    end
+    return true -- all axis overlap
+end
+-- Calculate projection of polygon (as points) into axis (as its normal)
+-- pos is offset position of polygon, so each point is actually the sum of both
+function calcProjection(normal, points, pos)
+    local min = normal:dot(points[1] + pos)
+    local max = min
+    for i = 2, #points do
+	local p = normal:dot(points[i] + pos)
+	if p < min then 
+	    min = p
+	elseif p > max then
+	    max = p
+        end
+    end
+    return min, max
+end
+-- Spawn an asteroid with random values
 function spawnAsteroid()
+    -- Make a random position outside a circle centered at (400,400) and radius 100 
     local pos = vec(400, 400) + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
     local radius = 20 + math.random()*35
-    local num_corners = math.random(3, 7)
-    local corners = {}
-    for i = 1, num_corners do
-	local v = vec.fromAngle(i*2*math.pi/num_corners)*radius
-	table.insert(corners, v)
+    local num_points = math.random(3, 7)
+    local points = {}
+    for i = 1, num_points do
+	local v = vec.fromAngle(i*2*math.pi/num_points)*radius
+	table.insert(points, v)
     end	
-    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, corners = corners })
+    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
-function drawAsteroid(x, y, rotation, corners)
+function drawAsteroid(x, y, rotation, points)
     love.graphics.setColor(0.5,0.75,0)
     local pos = vec(x, y)
-    local first_point = pos + corners[1]:clone():rotate(rotation)
+    local first_point = pos + points[1]:clone():rotate(rotation)
     local before_point = first_point 
-    for i = 2, #corners do
-	local point = pos + corners[i]:clone():rotate(rotation)
+    for i = 2, #points do
+	local point = pos + points[i]:clone():rotate(rotation)
 	love.graphics.line(before_point.x, before_point.y, point.x, point.y)
 	before_point = point
     end
-    local last_point = pos + corners[#corners]:clone():rotate(rotation)
+    local last_point = pos + points[#points]:clone():rotate(rotation)
     love.graphics.line(last_point.x, last_point.y, first_point.x, first_point.y)
 end
 
 function love.load()
     math.randomseed(100)
-    for i = 1,10 do
+    for i = 1,20 do
         spawnAsteroid()
     end
 end
@@ -79,6 +120,12 @@ function love.update(dt)
 	asteroid.pos.x = asteroid.pos.x % world.width
 	asteroid.pos.y = asteroid.pos.y % world.height
     end
+    -- Check collisions
+    for i, asteroid in pairs(asteroids) do
+	if checkCollisionSAT(asteroid, { pos = player.pos, points = playerPolygonPoints }) then
+	    print('collision with player!')
+	end
+    end
 end
 
 function love.draw(dt)
@@ -86,7 +133,7 @@ function love.draw(dt)
     drawPlayer(player.pos.x - camPosition.x, player.pos.y - camPosition.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
 	drawAsteroid(asteroid.pos.x - camPosition.x, asteroid.pos.y - camPosition.y, 
-		     asteroid.rotation, asteroid.corners)
+		     asteroid.rotation, asteroid.points)
     end
 end
 
