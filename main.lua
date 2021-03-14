@@ -3,13 +3,6 @@ world = { width = 2000, height = 2000 }
 
 playerPolygonPoints = { vec(-15,-15), vec(25,0), vec(-15,15) }
 -- player is a triangle, a bit centered
-function drawPlayer(x, y, rotation) 
-    love.graphics.setColor(0, 0.25, 0.75)
-    local p1 = vec(x,y) + playerPolygonPoints[1]:rotate(rotation)
-    local p2 = vec(x,y) + playerPolygonPoints[2]:rotate(rotation)
-    local p3 = vec(x,y) + playerPolygonPoints[3]:rotate(rotation)
-    love.graphics.line(p1.x,p1.y,p2.x,p2.y,p3.x,p3.y,p1.x,p1.y)
-end
 player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0 }
 asteroids = {}
 bullets = {}
@@ -72,8 +65,14 @@ function spawnAsteroid()
     end	
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
+function drawPlayer(x, y, rotation)
+    drawPolygon(x, y, rotation, playerPolygonPoints, {r = 0, g = 0.25, b = 0.75})
+end
 function drawAsteroid(x, y, rotation, points)
-    love.graphics.setColor(0.5,0.75,0)
+    drawPolygon(x, y, rotation, points, {r = 0.5, g = 0.75, b = 0})
+end
+function drawPolygon(x, y, rotation, points, color)
+    love.graphics.setColor(color.r, color.g, color.b)
     local pos = vec(x, y)
     local first_point = pos + points[1]:clone():rotate(rotation)
     local before_point = first_point 
