@@ -3,7 +3,7 @@ world = { width = 2000, height = 2000 }
 
 playerPolygonPoints = { vec(-15,-15), vec(25,0), vec(-15,15) }
 -- player is a triangle, a bit centered
-player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0 }
+player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0, isAlive = true }
 asteroids = {}
 bullets = {}
 
@@ -70,6 +70,11 @@ function spawnAsteroid()
     end	
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
+function spawnInitialAsteroids()
+    for i = 1,20 do
+        spawnAsteroid()
+    end
+end
 function drawPlayer(x, y, rotation)
     drawPolygon(x, y, rotation, playerPolygonPoints, {r = 0, g = 0.25, b = 0.75})
 end
@@ -95,14 +100,25 @@ end
 
 function love.load()
     math.randomseed(100)
-    for i = 1,20 do
-        spawnAsteroid()
-    end
+    spawnInitialAsteroids()
 end
 
 function love.update(dt)
     if love.keyboard.isDown('escape') then
 	love.event.push('quit')
+    end
+    if not player.isAlive then
+	if love.keyboard.isDown('r') then
+	    player.pos = vec(400,400)
+	    player.rotation = 0
+	    player.speed = vec(0, 0)
+	    player.isAlive = true
+	    bullets = {}
+	    asteroids = {}
+	    spawnInitialAsteroids()
+	else
+	    return
+	end
     end
     if love.keyboard.isDown('w','up') then
         player.speed = player.speed + vec.fromAngle(player.rotation)*100*dt
@@ -146,17 +162,26 @@ function love.update(dt)
     -- Check collisions
     for i, asteroid in pairs(asteroids) do
 	if checkCollisionSAT(asteroid, { pos = player.pos, rotation = player.rotation, points = playerPolygonPoints }) then
-	    print('collision with player!')
+	    -- collision asteroid x player
+	    player.isAlive = false
 	end
 	for i, bullet in pairs(bullets) do
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
-		print('collision with bullet')
+		-- collision bullet x asteroid
+		table.remove(bullets, i)
 	    end
 	end
     end
 end
 
 function love.draw(dt)
+    if not player.isAlive then
+	love.graphics.setColor(0.75, 0, 0)
+	love.graphics.print('Died! Press R to start again!',
+	                    love.graphics.getWidth()/2 - 250,
+	                    love.graphics.getHeight()/2 - 100,
+			    0, 2.5)
+    end
     local camPosition = vec(-400, -400) + player.pos:clone()
     drawPlayer(player.pos.x - camPosition.x, player.pos.y - camPosition.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
