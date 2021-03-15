@@ -69,11 +69,21 @@ function spawnAsteroid()
     local ang_speed = math.random()*math.pi
     local radius = 20 + math.random()*35
     local num_points = math.random(3, 7)
-    local points = {}
-    for i = 1, num_points do
-	local v = vec.fromAngle(i*2*math.pi/num_points)*radius
-	table.insert(points, v)
-    end	
+    local minAngle = math.pi/7
+    local maxAngle = 2.25*math.pi/7
+    local pp = 0
+    local points = { vec(radius*math.cos(pp), -radius*math.sin(pp)) }
+    print('-------')
+    while pp + 2*minAngle < 2*math.pi do
+	-- generate a random angle with a mininimum separation of minAngle from the last one point
+	-- and a max of maxAngle (and also a minAngle from the first point (= which is also the 'last'))
+	local actualMaxAngle = pp + maxAngle < math.pi*2 - minAngle and maxAngle or minAngle
+	print(pp, minAngle, actualMaxAngle)
+	local angle = minAngle + math.random()*actualMaxAngle - minAngle
+	pp = pp + angle
+	local point = vec(radius*math.cos(pp), -radius*math.sin(pp))
+	table.insert(points, point)
+    end
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
 function startNewGame()
