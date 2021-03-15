@@ -17,18 +17,18 @@ end
 function clamp(val, min, max) return (val < min) and min or (val > max) and max or val end
 
 -- Polygon collision testing using SAT theorem
--- polygon = { pos, points }
+-- polygon = { pos, rotation, points }
 function checkCollisionSAT(polygon1, polygon2)
     local normals = {}
     for i = 1, #polygon1.points do
 	local j = (i % #polygon1.points) + 1
-	local p1 = polygon1.points[i] + polygon1.pos
-	local p2 = polygon1.points[j] + polygon1.pos
+	local p1 = (polygon1.points[i] + polygon1.pos):rotate(polygon1.rotation)
+	local p2 = (polygon1.points[j] + polygon1.pos):rotate(polygon1.rotation)
 	table.insert(normals, vec(-(p2.y-p1.y), p2.x-p1.x):norm())
     end
     for i, normal in pairs(normals) do
-	local x1, x2 = calcProjection(normal, polygon1.points, polygon1.pos)
-	local y1, y2 = calcProjection(normal, polygon2.points, polygon2.pos)
+	local x1, x2 = calcProjection(normal, polygon1.points, polygon1.pos, polygon1.rotation)
+	local y1, y2 = calcProjection(normal, polygon2.points, polygon2.pos, polygon2.rotation)
 	-- check if *not* overlap in the axis
 	-- read as: if x1 inside y; x2 inside y ...
 	if not ((x1 > y1 and x1 < y2) or (x2 > y1 and x2 < y2)
@@ -40,12 +40,13 @@ function checkCollisionSAT(polygon1, polygon2)
     return true -- all axis overlap
 end
 -- Calculate projection of polygon (as points) into axis (as its normal)
--- pos is offset position of polygon, so each point is actually the sum of both
-function calcProjection(normal, points, pos)
-    local min = normal:dot(points[1] + pos)
+-- points are referenced from a point inside of the polygon
+-- so the global position must be computed from a position and a rotation
+function calcProjection(normal, points, pos, rotation)
+    local min = normal:dot(points[1]:clone():rotate(rotation) + pos)
     local max = min
     for i = 2, #points do
-	local p = normal:dot(points[i] + pos)
+	local p = normal:dot(points[i]:clone():rotate(rotation) + pos)
 	if p < min then 
 	    min = p
 	elseif p > max then
@@ -144,11 +145,11 @@ function love.update(dt)
     end
     -- Check collisions
     for i, asteroid in pairs(asteroids) do
-	if checkCollisionSAT(asteroid, { pos = player.pos, points = playerPolygonPoints }) then
+	if checkCollisionSAT(asteroid, { pos = player.pos, rotation = player.rotation, points = playerPolygonPoints }) then
 	    print('collision with player!')
 	end
 	for i, bullet in pairs(bullets) do
-	    if checkCollisionSAT(asteroid, { pos = bullet.pos, points = bulletPolygonPoints }) then
+	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
 		print('collision with bullet')
 	    end
 	end
