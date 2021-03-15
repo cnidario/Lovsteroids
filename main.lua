@@ -3,7 +3,13 @@ world = { width = 2000, height = 2000 }
 
 playerPolygonPoints = { vec(-15,-15), vec(25,0), vec(-15,15) }
 -- player is a triangle, a bit centered
-player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0, isAlive = true }
+player = { 
+    pos = vec(400, 400),
+    speed = vec(0, 0),
+    rotation = 0,
+    isAlive = true,
+    startPos = vec(400, 400)
+}
 asteroids = {}
 bullets = {}
 
@@ -57,8 +63,8 @@ function calcProjection(normal, points, pos, rotation)
 end
 -- Spawn an asteroid with random values
 function spawnAsteroid()
-    -- Make a random position outside a circle centered at (400,400) and radius 100 
-    local pos = vec(400, 400) + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
+    -- Make a random position outside a circle centered at player start position and radius 100 
+    local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
     local radius = 20 + math.random()*35
@@ -69,6 +75,15 @@ function spawnAsteroid()
 	table.insert(points, v)
     end	
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
+end
+function startNewGame()
+    player.pos = player.startPos
+    player.rotation = 0
+    player.speed = vec(0, 0)
+    player.isAlive = true
+    bullets = {}
+    asteroids = {}
+    spawnInitialAsteroids()
 end
 function spawnInitialAsteroids()
     for i = 1,20 do
@@ -100,7 +115,7 @@ end
 
 function love.load()
     math.randomseed(100)
-    spawnInitialAsteroids()
+    startNewGame()
 end
 
 function love.update(dt)
@@ -109,13 +124,7 @@ function love.update(dt)
     end
     if not player.isAlive then
 	if love.keyboard.isDown('r') then
-	    player.pos = vec(400,400)
-	    player.rotation = 0
-	    player.speed = vec(0, 0)
-	    player.isAlive = true
-	    bullets = {}
-	    asteroids = {}
-	    spawnInitialAsteroids()
+	    startNewGame()
 	else
 	    return
 	end
@@ -176,8 +185,8 @@ end
 
 function love.draw(dt)
     if not player.isAlive then
-	love.graphics.setColor(0.75, 0, 0)
-	love.graphics.print('Died! Press R to start again!',
+        love.graphics.setColor(0.75, 0, 0)
+        love.graphics.print('Died! Press R to start again!',
 	                    love.graphics.getWidth()/2 - 250,
 	                    love.graphics.getHeight()/2 - 100,
 			    0, 2.5)
