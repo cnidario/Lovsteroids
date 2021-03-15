@@ -7,6 +7,10 @@ player = { pos = vec(400, 400), speed = vec(0, 0), rotation = 0 }
 asteroids = {}
 bullets = {}
 
+bulletTimerMax = 0.25
+bulletTimer = 0
+bulletPolygonPoints = { vec(-2,-1), vec(2,-1), vec(2, 1), vec(-2,1)  }
+
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
 end
@@ -71,6 +75,9 @@ end
 function drawAsteroid(x, y, rotation, points)
     drawPolygon(x, y, rotation, points, {r = 0.5, g = 0.75, b = 0})
 end
+function drawBullet(x, y, rotation)
+    drawPolygon(x, y, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1})
+end
 function drawPolygon(x, y, rotation, points, color)
     love.graphics.setColor(color.r, color.g, color.b)
     local pos = vec(x, y)
@@ -106,6 +113,11 @@ function love.update(dt)
     elseif love.keyboard.isDown('a','left') then
 	player.rotation = player.rotation + 2*dt
     end
+    if love.keyboard.isDown('space') and bulletTimer == 0 then
+	local bullet = { pos = player.pos:clone(), speed = vec.fromAngle(player.rotation)*300, rotation = player.rotation, live = 0 }
+	table.insert(bullets, bullet)
+	bulletTimer = bulletTimerMax
+    end
     player.speed:limit(250)
     player.rotation = player.rotation % (2*math.pi)
     -- update position according speed
@@ -119,10 +131,26 @@ function love.update(dt)
 	asteroid.pos.x = asteroid.pos.x % world.width
 	asteroid.pos.y = asteroid.pos.y % world.height
     end
+    -- bullets
+    bulletTimer = clamp(bulletTimer - dt, 0, bulletTimerMax)
+    for i, bullet in pairs(bullets) do
+	bullet.live = bullet.live + dt
+	if bullet.live > 2.5 then
+	    table.remove(bullets, i)
+	end
+        bullet.pos = bullet.pos + bullet.speed*dt
+	bullet.pos.x = bullet.pos.x % world.width
+	bullet.pos.y = bullet.pos.y % world.height
+    end
     -- Check collisions
     for i, asteroid in pairs(asteroids) do
 	if checkCollisionSAT(asteroid, { pos = player.pos, points = playerPolygonPoints }) then
 	    print('collision with player!')
+	end
+	for i, bullet in pairs(bullets) do
+	    if checkCollisionSAT(asteroid, { pos = bullet.pos, points = bulletPolygonPoints }) then
+		print('collision with bullet')
+	    end
 	end
     end
 end
@@ -133,6 +161,9 @@ function love.draw(dt)
     for i, asteroid in pairs(asteroids) do
 	drawAsteroid(asteroid.pos.x - camPosition.x, asteroid.pos.y - camPosition.y, 
 		     asteroid.rotation, asteroid.points)
+    end
+    for i, bullet in pairs(bullets) do
+        drawBullet(bullet.pos.x - camPosition.x, bullet.pos.y - camPosition.y, bullet.rotation)
     end
 end
 
