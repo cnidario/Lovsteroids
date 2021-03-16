@@ -61,27 +61,34 @@ function calcProjection(normal, points, pos, rotation)
     end
     return min, max
 end
+function ellipse(angle, e, rx)
+    local r = rx*(1 - e*e)/(1 + e*math.cos(angle))
+    local c = rx*e
+    local x = c + r*math.cos(angle)
+    local y = r*math.sin(angle)
+    return vec(x, y)
+end
 -- Spawn an asteroid with random values
 function spawnAsteroid()
     -- Make a random position outside a circle centered at player start position and radius 100 
     local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
-    local radius = 20 + math.random()*35
-    local num_points = math.random(3, 7)
-    local minAngle = math.pi/7
-    local maxAngle = 2.25*math.pi/7
-    local pp = 0
-    local points = { vec(radius*math.cos(pp), -radius*math.sin(pp)) }
-    print('-------')
-    while pp + 2*minAngle < 2*math.pi do
-	-- generate a random angle with a mininimum separation of minAngle from the last one point
-	-- and a max of maxAngle (and also a minAngle from the first point (= which is also the 'last'))
-	local actualMaxAngle = pp + maxAngle < math.pi*2 - minAngle and maxAngle or minAngle
-	print(pp, minAngle, actualMaxAngle)
-	local angle = minAngle + math.random()*actualMaxAngle - minAngle
-	pp = pp + angle
-	local point = vec(radius*math.cos(pp), -radius*math.sin(pp))
+    local rx, ry = 55, 30
+    local e = math.sqrt(1 - ry*ry/(rx*rx)) -- eccentricity: 0 < e < 1
+    local num_points = math.floor(9*rx/50)
+    local pps = {}
+    --print('-------', rx, ry, e, ry*ry/(rx*rx))
+    print('num points = ', num_points)
+    for i = 1, num_points do
+	local p = math.random()*2*math.pi
+	table.insert(pps, p)
+    end
+    table.sort(pps)
+    print(table.concat(pps, ', '))
+    local points = {}
+    for i, p in pairs(pps) do
+	local point = ellipse(p, e, rx)
 	table.insert(points, point)
     end
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
