@@ -61,11 +61,9 @@ function calcProjection(normal, points, pos, rotation)
     end
     return min, max
 end
-function ellipse(angle, e, rx)
-    local r = rx*(1 - e*e)/(1 + e*math.cos(angle))
-    local c = rx*e
-    local x = c + r*math.cos(angle)
-    local y = r*math.sin(angle)
+function ellipse(angle, a, b)
+    local x = a*math.sin(angle)
+    local y = b*math.cos(angle)
     return vec(x, y)
 end
 -- Spawn an asteroid with random values
@@ -74,43 +72,19 @@ function spawnAsteroid()
     local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
-    local rx, ry = 55, 30
-    local e = math.sqrt(1 - ry*ry/(rx*rx)) -- eccentricity: 0 < e < 1
-    --print('-------', rx, ry, e, ry*ry/(rx*rx))
-    local isMoreSpace = true
-    local minAngle = math.pi/11  + math.random()*(math.pi/6 - math.pi/11)
-    local rpoints = {0,2*math.pi}
-    while isMoreSpace do
-	isMoreSpace = false -- false until we find a contradiction
-	local toAdd = {} -- to add in this iteration, because we cant use the same table
-	local p, q = rpoints[1]
-	for i = 2, #rpoints do
-	    q = rpoints[i]
-	    if q - p >= 2*minAngle then -- place a point between p+minAngle and q-minAngle
-		isMoreSpace = true
-		local min, max = p + minAngle, q - minAngle
-		local newPoint = min + math.random()*(max - min)
-		table.insert(toAdd, newPoint)
-	    end
-	    p = q
-	end
-	-- merge & sort arrays
-	for _,v in ipairs(toAdd) do table.insert(rpoints,v) end
-	table.sort(rpoints)
+    -- semi-major and semi-minor axis of the ellipse
+    local a = 25 + math.random()*(60 - 25)
+    local b = a + math.random()*(60 - a)
+    local angle_points = {}
+    for i = 1, math.random(7, 13) do
+        table.insert(angle_points, math.random()*2*math.pi)
     end
-    table.remove(rpoints) -- pop 2*pi == 0
-    -- add one manual last point because asteroids formed are ugly
-    local last = rpoints[#rpoints] + minAngle/2
-    table.insert(rpoints, last + math.random()*((2*math.pi - minAngle/2) - last))
-    print(table.concat(rpoints, ', '))
+    table.sort(angle_points)
     local points = {}
-    for i, p in pairs(rpoints) do
-	print('angle ', p/(math.pi*2))
-	local point = ellipse(p, e, rx)
+    for i, p in pairs(angle_points) do
+	local point = ellipse(p, a, b)
 	table.insert(points, point)
     end
-    -- FIXME!!! Just realized something is wrong with ellipse projection
-    points = { ellipse(0, e, rx), ellipse(math.pi/2,e,rx), ellipse(math.pi,e,rx), ellipse(3*math.pi/2,e,rx) }
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
 function startNewGame()
