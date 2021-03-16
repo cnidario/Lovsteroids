@@ -76,21 +76,41 @@ function spawnAsteroid()
     local ang_speed = math.random()*math.pi
     local rx, ry = 55, 30
     local e = math.sqrt(1 - ry*ry/(rx*rx)) -- eccentricity: 0 < e < 1
-    local num_points = math.floor(9*rx/50)
-    local pps = {}
     --print('-------', rx, ry, e, ry*ry/(rx*rx))
-    print('num points = ', num_points)
-    for i = 1, num_points do
-	local p = math.random()*2*math.pi
-	table.insert(pps, p)
+    local isMoreSpace = true
+    local minAngle = math.pi/11  + math.random()*(math.pi/6 - math.pi/11)
+    local rpoints = {0,2*math.pi}
+    while isMoreSpace do
+	isMoreSpace = false -- false until we find a contradiction
+	local toAdd = {} -- to add in this iteration, because we cant use the same table
+	local p, q = rpoints[1]
+	for i = 2, #rpoints do
+	    q = rpoints[i]
+	    if q - p >= 2*minAngle then -- place a point between p+minAngle and q-minAngle
+		isMoreSpace = true
+		local min, max = p + minAngle, q - minAngle
+		local newPoint = min + math.random()*(max - min)
+		table.insert(toAdd, newPoint)
+	    end
+	    p = q
+	end
+	-- merge & sort arrays
+	for _,v in ipairs(toAdd) do table.insert(rpoints,v) end
+	table.sort(rpoints)
     end
-    table.sort(pps)
-    print(table.concat(pps, ', '))
+    table.remove(rpoints) -- pop 2*pi == 0
+    -- add one manual last point because asteroids formed are ugly
+    local last = rpoints[#rpoints] + minAngle/2
+    table.insert(rpoints, last + math.random()*((2*math.pi - minAngle/2) - last))
+    print(table.concat(rpoints, ', '))
     local points = {}
-    for i, p in pairs(pps) do
+    for i, p in pairs(rpoints) do
+	print('angle ', p/(math.pi*2))
 	local point = ellipse(p, e, rx)
 	table.insert(points, point)
     end
+    -- FIXME!!! Just realized something is wrong with ellipse projection
+    points = { ellipse(0, e, rx), ellipse(math.pi/2,e,rx), ellipse(math.pi,e,rx), ellipse(3*math.pi/2,e,rx) }
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
 end
 function startNewGame()
