@@ -91,7 +91,9 @@ function spawnAsteroid()
 	local point = ellipse(p, a, b)
 	table.insert(points, point)
     end
-    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points, hit = false })
+    local area, minArea, maxArea = math.pi*a*b, math.pi*25*25, math.pi*60*60
+    local category = 1 + math.floor(3*(area - minArea)/(maxArea - minArea)) -- 1, 2, 3
+    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points, hit = false, category = category, numberOfHits = 0 })
 end
 function startNewGame()
     player.pos = player.startPos
@@ -175,7 +177,8 @@ function love.update(dt)
     player.pos.x = player.pos.x % world.width
     player.pos.y = player.pos.y % world.height
     -- asteroids
-    for i, asteroid in pairs(asteroids) do
+    for i = #asteroids, 1, -1 do
+	asteroid = asteroids[i]
         asteroid.pos = asteroid.pos + asteroid.speed*dt
 	asteroid.rotation = (asteroid.rotation + asteroid.ang_speed*dt) % (2*math.pi)
 	asteroid.pos.x = asteroid.pos.x % world.width
@@ -183,7 +186,12 @@ function love.update(dt)
 
 	if asteroid.hit then
 	    asteroid.hitTimer = asteroid.hitTimer - dt
-	    if asteroid.hitTimer <= 0 then asteroid.hit = false end
+	    if asteroid.hitTimer <= 0 then 
+		asteroid.hit = false 
+		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+		    table.remove(asteroids, i)
+		end
+	    end
 	end
     end
     -- bullets
@@ -208,7 +216,10 @@ function love.update(dt)
 		-- collision bullet x asteroid
 		table.remove(bullets, i)
 		asteroid.hit = true
-		asteroid.hitTimer = asteroidHitTimerMax
+		asteroid.numberOfHits = asteroid.numberOfHits + 1
+		if asteroid.numberOfHits <= 1 + math.floor(asteroid.category * 1.5) then
+		    asteroid.hitTimer = asteroidHitTimerMax
+		end
 	    end
 	end
     end
