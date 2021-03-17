@@ -17,6 +17,9 @@ bulletTimerMax = 0.25
 bulletTimer = 0
 bulletPolygonPoints = { vec(-2,-1), vec(2,-1), vec(2, 1), vec(-2,1)  }
 
+asteroidHitTimerMax = 0.75
+asteroidHits = {}
+
 -- sounds
 shoot = nil
 
@@ -88,7 +91,7 @@ function spawnAsteroid()
 	local point = ellipse(p, a, b)
 	table.insert(points, point)
     end
-    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points })
+    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points, hit = false })
 end
 function startNewGame()
     player.pos = player.startPos
@@ -107,24 +110,27 @@ end
 function drawPlayer(x, y, rotation)
     drawPolygon(x, y, rotation, playerPolygonPoints, {r = 0, g = 0.25, b = 0.75})
 end
-function drawAsteroid(x, y, rotation, points)
-    drawPolygon(x, y, rotation, points, {r = 0.5, g = 0.75, b = 0})
+function drawAsteroid(cam, asteroid)
+    -- blink alterning fill and line modes
+    local mode = asteroid.hit and (asteroid.hitTimer % 0.2) < 0.1 and 'fill' or 'line'
+    drawPolygon(asteroid.pos.x - cam.x, asteroid.pos.y - cam.y,
+                asteroid.rotation, asteroid.points, {r = 0.5, g = 0.75, b = 0},
+		mode)
 end
 function drawBullet(x, y, rotation)
     drawPolygon(x, y, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1})
 end
-function drawPolygon(x, y, rotation, points, color)
+function drawPolygon(x, y, rotation, points, color, mode)
+    mode = mode or 'line'
     love.graphics.setColor(color.r, color.g, color.b)
     local pos = vec(x, y)
-    local first_point = pos + points[1]:clone():rotate(rotation)
-    local before_point = first_point 
-    for i = 2, #points do
-	local point = pos + points[i]:clone():rotate(rotation)
-	love.graphics.line(before_point.x, before_point.y, point.x, point.y)
-	before_point = point
+    local vertices = {}
+    for i, p in ipairs(points) do
+	local pp = p:clone():rotate(rotation) + pos
+	table.insert(vertices, pp.x)
+	table.insert(vertices, pp.y)
     end
-    local last_point = pos + points[#points]:clone():rotate(rotation)
-    love.graphics.line(last_point.x, last_point.y, first_point.x, first_point.y)
+    love.graphics.polygon(mode, vertices)
 end
 
 function love.load()
@@ -174,6 +180,11 @@ function love.update(dt)
 	asteroid.rotation = (asteroid.rotation + asteroid.ang_speed*dt) % (2*math.pi)
 	asteroid.pos.x = asteroid.pos.x % world.width
 	asteroid.pos.y = asteroid.pos.y % world.height
+
+	if asteroid.hit then
+	    asteroid.hitTimer = asteroid.hitTimer - dt
+	    if asteroid.hitTimer <= 0 then asteroid.hit = false end
+	end
     end
     -- bullets
     bulletTimer = clamp(bulletTimer - dt, 0, bulletTimerMax)
@@ -196,6 +207,8 @@ function love.update(dt)
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
 		-- collision bullet x asteroid
 		table.remove(bullets, i)
+		asteroid.hit = true
+		asteroid.hitTimer = asteroidHitTimerMax
 	    end
 	end
     end
@@ -209,14 +222,13 @@ function love.draw(dt)
 	                    love.graphics.getHeight()/2 - 100,
 			    0, 2.5)
     end
-    local camPosition = vec(-400, -400) + player.pos:clone()
-    drawPlayer(player.pos.x - camPosition.x, player.pos.y - camPosition.y, player.rotation)
+    local cam = vec(-400, -400) + player.pos:clone()
+    drawPlayer(player.pos.x - cam.x, player.pos.y - cam.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
-	drawAsteroid(asteroid.pos.x - camPosition.x, asteroid.pos.y - camPosition.y, 
-		     asteroid.rotation, asteroid.points)
+	drawAsteroid(cam, asteroid) 
     end
     for i, bullet in pairs(bullets) do
-        drawBullet(bullet.pos.x - camPosition.x, bullet.pos.y - camPosition.y, bullet.rotation)
+        drawBullet(bullet.pos.x - cam.x, bullet.pos.y - cam.y, bullet.rotation)
     end
 end
 
