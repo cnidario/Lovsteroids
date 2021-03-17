@@ -14,15 +14,16 @@ player = {
 asteroids = {}
 bullets = {}
 
-bulletTimerMax = 0.25
+bulletTimerMax = 0.1
 bulletTimer = 0
 bulletPolygonPoints = { vec(-2,-1), vec(2,-1), vec(2, 1), vec(-2,1)  }
+bulletCounter = 0
 
 asteroidHitTimerMax = 0.75
 asteroidHits = {}
 
 -- sounds
-shoot = nil
+shootSound = nil
 
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
@@ -129,7 +130,7 @@ function drawAsteroid(cam, asteroid)
 		mode)
 end
 function drawBullet(x, y, rotation)
-    drawPolygon(x, y, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1})
+    drawPolygon(x, y, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1}, 'fill')
 end
 function drawPolygon(x, y, rotation, points, color, mode)
     mode = mode or 'line'
@@ -146,8 +147,8 @@ end
 
 function love.load()
     math.randomseed(100)
-    shoot = love.audio.newSource('sounds/laser.wav', 'static')
-    shoot:setVolume(0.1)
+    shootSound = love.audio.newSource('sounds/laser.wav', 'static')
+    shootSound:setVolume(0.1)
     startNewGame()
 end
 
@@ -174,9 +175,12 @@ function love.update(dt)
     end
     -- shoot
     if love.keyboard.isDown('space') and bulletTimer == 0 then
-	local bullet = { pos = player.pos:clone(), speed = vec.fromAngle(player.rotation)*300, rotation = player.rotation, live = 0 }
+	bulletCounter = bulletCounter + 1
+	local m = math.random(3,9)
+	local ds = vec(player.pos.y, -player.pos.x):norm() * m * (bulletCounter % 2 == 0 and 1 or -1)
+	local bullet = { pos = player.pos + ds, speed = vec.fromAngle(player.rotation)*300, rotation = player.rotation, live = 0 }
 	table.insert(bullets, bullet)
-	shoot:play()
+	shootSound:clone():play()
 	bulletTimer = bulletTimerMax
     end
     player.speed:limit(250)
