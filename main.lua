@@ -27,6 +27,7 @@ shootSound = nil
 explosionSounds = {}
 hitSounds = {}
 backgroundSound = nil
+loseSound = {}
 
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
@@ -166,6 +167,7 @@ function love.load()
     	table.insert(explosionSounds, explosionSound)
 	table.insert(hitSounds, hitSound)
     end
+    loseSound = love.audio.newSource('sounds/lose.wav', 'static')
     startNewGame()
 end
 
@@ -253,6 +255,7 @@ function love.update(dt)
 	if checkCollisionSAT(asteroid, { pos = player.pos, rotation = player.rotation, points = playerPolygonPoints }) then
 	    -- collision asteroid x player
 	    player.isAlive = false
+	    loseSound:play()
 	end
 	for i, bullet in pairs(bullets) do
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
