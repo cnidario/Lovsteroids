@@ -32,6 +32,11 @@ hitSounds = {}
 backgroundSound = nil
 loseSound = {}
 
+explosionParticle = nil
+hitExplosionSystem = nil
+asteroidExplosionSystem = nil
+explosions = {}
+
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
 end
@@ -119,6 +124,7 @@ function startNewGame()
     player.score = 0
     bullets = {}
     asteroids = {}
+    explosions = {}
     spawnInitialAsteroids()
 end
 function spawnInitialAsteroids()
@@ -167,6 +173,7 @@ function love.load()
     backgroundSound = love.audio.newSource('sounds/background-noise.wav', 'static')
     backgroundSound:setLooping(true)
     backgroundSound:play()
+    love.graphics.setLineWidth(2)
     for i = 1, 5 do
         local explosionSound = love.audio.newSource(string.format('sounds/explosion%d.wav', i), 'static')
         local hitSound = love.audio.newSource(string.format('sounds/hit%d.wav', i), 'static')
@@ -174,7 +181,47 @@ function love.load()
 	table.insert(hitSounds, hitSound)
     end
     loseSound = love.audio.newSource('sounds/lose.wav', 'static')
+    -- particle system for explosion effects
+    local explosionImageData = love.image.newImageData(3, 3)
+    for i = 0, 2 do
+	for j = 0, 2 do
+            explosionImageData:setPixel(i, j, 0.95, 1, 0.07, 1)
+	end
+    end
+    explosionParticle = love.graphics.newImage(explosionImageData)
+    initExplosionSystems()
     startNewGame()
+end
+
+function spawnHitExplosion(pos, speed)
+    local explosionSystem = hitExplosionSystem:clone()
+    table.insert(explosions, { pos = pos:clone(), speed = speed, system = explosionSystem})
+    explosionSystem:emit(32)
+end
+function spawnAsteroidExplosion(pos, speed)
+    local explosionSystem = asteroidExplosionSystem:clone()
+    table.insert(explosions, { pos = pos:clone(), speed = speed, system = explosionSystem})
+    explosionSystem:emit(64)
+end
+
+function initExplosionSystems()
+    hitExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
+    hitExplosionSystem:setParticleLifetime(2, 5)
+    hitExplosionSystem:setEmitterLifetime(0.5)
+    hitExplosionSystem:setEmissionRate(5)
+    hitExplosionSystem:setSizeVariation(1)
+    hitExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
+    hitExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
+    
+    asteroidExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
+    asteroidExplosionSystem:setParticleLifetime(2, 3)
+    asteroidExplosionSystem:setEmitterLifetime(0.5)
+    asteroidExplosionSystem:setEmissionRate(32)
+    asteroidExplosionSystem:setSizeVariation(1)
+    asteroidExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
+    asteroidExplosionSystem:setSpeed(300, 600)
+    asteroidExplosionSystem:setSpread(2*math.pi)
+    asteroidExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
 end
 
 function love.update(dt)
@@ -230,6 +277,7 @@ function love.update(dt)
                 -- reached hits needed to break/destroy the asteroid?
 		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
 		    playRandomExplosionSound()
+		    spawnAsteroidExplosion(asteroid.pos, vec(0, 0))
 		    player.score = player.score + asteroid.category * 10
 		    table.remove(asteroids, i)
 		    if asteroid.category > 1 then -- split new smaller asteroids
@@ -267,6 +315,7 @@ function love.update(dt)
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
 		-- collision bullet x asteroid
 		playRandomHitSound()
+		spawnHitExplosion(bullet.pos, asteroid.speed)
 		table.remove(bullets, i)
 		player.score = player.score + 5
 		asteroid.hit = true
@@ -275,6 +324,15 @@ function love.update(dt)
 		    asteroid.hitTimer = asteroidHitTimerMax
 		end
 	    end
+	end
+    end
+    -- effects of explosions 
+    for i = #explosions, 1, -1 do
+	local explosion = explosions[i]
+	explosion.system:update(dt)
+	explosion.pos = explosion.pos + explosion.speed*dt
+	if explosion.system:getCount() == 0 then
+	    table.remove(explosions, i)
 	end
     end
 end
@@ -296,6 +354,9 @@ function love.draw(dt)
     end
     for i, bullet in pairs(bullets) do
         drawBullet(bullet.pos.x - cam.x, bullet.pos.y - cam.y, bullet.rotation)
+    end
+    for i, explosion in pairs(explosions) do
+	love.graphics.draw(explosion.system, explosion.pos.x - cam.x, explosion.pos.y - cam.y)
     end
 end
 
