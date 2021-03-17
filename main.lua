@@ -8,7 +8,8 @@ player = {
     speed = vec(0, 0),
     rotation = 0,
     isAlive = true,
-    startPos = vec(400, 400)
+    startPos = vec(400, 400),
+    score = 0
 }
 asteroids = {}
 bullets = {}
@@ -100,6 +101,7 @@ function startNewGame()
     player.rotation = 0
     player.speed = vec(0, 0)
     player.isAlive = true
+    player.score = 0
     bullets = {}
     asteroids = {}
     spawnInitialAsteroids()
@@ -189,6 +191,7 @@ function love.update(dt)
 	    if asteroid.hitTimer <= 0 then 
 		asteroid.hit = false 
 		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+		    player.score = player.score + asteroid.category * 10
 		    table.remove(asteroids, i)
 		end
 	    end
@@ -215,6 +218,7 @@ function love.update(dt)
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
 		-- collision bullet x asteroid
 		table.remove(bullets, i)
+		player.score = player.score + 5
 		asteroid.hit = true
 		asteroid.numberOfHits = asteroid.numberOfHits + 1
 		if asteroid.numberOfHits <= 1 + math.floor(asteroid.category * 1.5) then
@@ -233,6 +237,8 @@ function love.draw(dt)
 	                    love.graphics.getHeight()/2 - 100,
 			    0, 2.5)
     end
+    love.graphics.setColor(1, 0.75, 0)
+    love.graphics.print(string.format("Score: %d", player.score), 0, 0, 0, 1.5)
     local cam = vec(-400, -400) + player.pos:clone()
     drawPlayer(player.pos.x - cam.x, player.pos.y - cam.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
