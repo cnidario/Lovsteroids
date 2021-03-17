@@ -17,6 +17,9 @@ bulletTimerMax = 0.25
 bulletTimer = 0
 bulletPolygonPoints = { vec(-2,-1), vec(2,-1), vec(2, 1), vec(-2,1)  }
 
+-- sounds
+shoot = nil
+
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
 end
@@ -126,6 +129,8 @@ end
 
 function love.load()
     math.randomseed(100)
+    shoot = love.audio.newSource('sounds/laser.wav', 'static')
+    shoot:setVolume(0.1)
     startNewGame()
 end
 
@@ -150,9 +155,11 @@ function love.update(dt)
     elseif love.keyboard.isDown('a','left') then
 	player.rotation = player.rotation + 2*dt
     end
+    -- shoot
     if love.keyboard.isDown('space') and bulletTimer == 0 then
 	local bullet = { pos = player.pos:clone(), speed = vec.fromAngle(player.rotation)*300, rotation = player.rotation, live = 0 }
 	table.insert(bullets, bullet)
+	shoot:play()
 	bulletTimer = bulletTimerMax
     end
     player.speed:limit(250)
