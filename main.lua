@@ -74,14 +74,24 @@ function ellipse(angle, a, b)
     return vec(x, y)
 end
 -- Spawn an asteroid with random values
-function spawnAsteroid()
+function spawnInitialAsteroid()
     -- Make a random position outside a circle centered at player start position and radius 100 
     local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
+    spawnAsteroid(pos, speed, ang_speed, 1 + math.floor(math.random()*3))
+end
+function asteroidRadius(category)
+    local min, max = 25, 60
+    max = 25 + (60 - 25)*category/3
+    local a = min + math.random()*(max - min)
+    local b = a + math.random()*(max - a)
+    return a, b
+end
+function spawnAsteroid(pos, speed, ang_speed, category)
+	print('spawn ast cat ', category)
     -- semi-major and semi-minor axis of the ellipse
-    local a = 25 + math.random()*(60 - 25)
-    local b = a + math.random()*(60 - a)
+    local a, b = asteroidRadius(category)
     local angle_points = {}
     for i = 1, math.random(7, 13) do
         table.insert(angle_points, math.random()*2*math.pi)
@@ -91,9 +101,7 @@ function spawnAsteroid()
     for i, p in pairs(angle_points) do
 	local point = ellipse(p, a, b)
 	table.insert(points, point)
-    end
-    local area, minArea, maxArea = math.pi*a*b, math.pi*25*25, math.pi*60*60
-    local category = 1 + math.floor(3*(area - minArea)/(maxArea - minArea)) -- 1, 2, 3
+    end 
     table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points, hit = false, category = category, numberOfHits = 0 })
 end
 function startNewGame()
@@ -108,7 +116,7 @@ function startNewGame()
 end
 function spawnInitialAsteroids()
     for i = 1,20 do
-        spawnAsteroid()
+        spawnInitialAsteroid()
     end
 end
 function drawPlayer(x, y, rotation)
@@ -193,6 +201,15 @@ function love.update(dt)
 		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
 		    player.score = player.score + asteroid.category * 10
 		    table.remove(asteroids, i)
+		    if asteroid.category > 1 then
+			local numAsteroids = asteroid.category
+			for j = 1, numAsteroids do
+			    local ang = 3*math.pi/8 + math.random(2*math.pi - 2*3*math.pi/8)
+			    local mag = asteroid.speed:getmag()*(math.random()*0.25 + 1.25)
+			    local speed = asteroid.speed:clone():norm():rotate(ang)*mag
+			    spawnAsteroid(asteroid.pos + speed*0.25, speed, math.random()*math.pi*1.5, asteroid.category - 1)
+			end
+		    end
 		end
 	    end
 	end
