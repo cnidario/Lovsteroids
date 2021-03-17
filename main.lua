@@ -89,7 +89,6 @@ function asteroidRadius(category)
     return a, b
 end
 function spawnAsteroid(pos, speed, ang_speed, category)
-	print('spawn ast cat ', category)
     -- semi-major and semi-minor axis of the ellipse
     local a, b = asteroidRadius(category)
     local angle_points = {}
@@ -194,18 +193,20 @@ function love.update(dt)
 	asteroid.pos.x = asteroid.pos.x % world.width
 	asteroid.pos.y = asteroid.pos.y % world.height
 
+	-- asteroid hit in the recent time?
 	if asteroid.hit then
-	    asteroid.hitTimer = asteroid.hitTimer - dt
-	    if asteroid.hitTimer <= 0 then 
-		asteroid.hit = false 
+	    asteroid.hitTimer = asteroid.hitTimer - dt -- update countdown timer
+	    if asteroid.hitTimer <= 0 then
+		asteroid.hit = false -- deactivate hit state
+                -- reached hits needed to break/destroy the asteroid?
 		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
 		    player.score = player.score + asteroid.category * 10
 		    table.remove(asteroids, i)
-		    if asteroid.category > 1 then
+		    if asteroid.category > 1 then -- split new smaller asteroids
 			local numAsteroids = asteroid.category
 			for j = 1, numAsteroids do
 			    local ang = 3*math.pi/8 + math.random(2*math.pi - 2*3*math.pi/8)
-			    local mag = asteroid.speed:getmag()*(math.random()*0.25 + 1.25)
+			    local mag = asteroid.speed:getmag()*(math.random()*0.75 + 1.5)
 			    local speed = asteroid.speed:clone():norm():rotate(ang)*mag
 			    spawnAsteroid(asteroid.pos + speed*0.25, speed, math.random()*math.pi*1.5, asteroid.category - 1)
 			end
