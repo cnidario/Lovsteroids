@@ -20,7 +20,10 @@ bulletPolygonPoints = { vec(-2,-1), vec(2,-1), vec(2, 1), vec(-2,1)  }
 bulletCounter = 0
 
 asteroidHitTimerMax = 0.75
-asteroidHits = {}
+asteroidBlinkTimes = 7
+asteroidColors = { {r = 0.5, g = 0.75, b = 0}, {r = 0.7, g = 0.9, b = 0.2}, 
+                   {r = 0.6, g = 0.6, b = 0.1}, {r = 0.8, g = 0.9, b = 0.5}, 
+		   {r = 0.7, g = 0.8, b = 0.8}, {r = 0.3, g = 0.8, b = 0.6} }
 
 -- sounds
 shootSound = nil
@@ -128,9 +131,12 @@ function drawPlayer(x, y, rotation)
 end
 function drawAsteroid(cam, asteroid)
     -- blink alterning fill and line modes
-    local mode = asteroid.hit and (asteroid.hitTimer % 0.2) < 0.1 and 'fill' or 'line'
+    local blinkTime = asteroidHitTimerMax / (2*asteroidBlinkTimes - 1)
+    local asteroidBlink = asteroid.hit and (asteroid.hitTimer % (2*blinkTime)) <= blinkTime
+    local mode = asteroidBlink and 'fill' or 'line'
+    local color = asteroidBlink and asteroidColors[math.random(2, #asteroidColors)] or asteroidColors[1]
     drawPolygon(asteroid.pos.x - cam.x, asteroid.pos.y - cam.y,
-                asteroid.rotation, asteroid.points, {r = 0.5, g = 0.75, b = 0},
+                asteroid.rotation, asteroid.points, color,
 		mode)
 end
 function drawBullet(x, y, rotation)
