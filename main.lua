@@ -24,6 +24,9 @@ asteroidHits = {}
 
 -- sounds
 shootSound = nil
+explosionSounds = {}
+hitSounds = {}
+backgroundSound = nil
 
 function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
@@ -144,11 +147,25 @@ function drawPolygon(x, y, rotation, points, color, mode)
     end
     love.graphics.polygon(mode, vertices)
 end
+function playRandomExplosionSound()
+    explosionSounds[math.random(1, #explosionSounds)]:clone():play()
+end
+function playRandomHitSound()
+    hitSounds[math.random(1, #hitSounds)]:clone():play()
+end
 
 function love.load()
     math.randomseed(100)
     shootSound = love.audio.newSource('sounds/laser.wav', 'static')
-    shootSound:setVolume(0.1)
+    backgroundSound = love.audio.newSource('sounds/background-noise.wav', 'static')
+    backgroundSound:setLooping(true)
+    backgroundSound:play()
+    for i = 1, 5 do
+        local explosionSound = love.audio.newSource(string.format('sounds/explosion%d.wav', i), 'static')
+        local hitSound = love.audio.newSource(string.format('sounds/hit%d.wav', i), 'static')
+    	table.insert(explosionSounds, explosionSound)
+	table.insert(hitSounds, hitSound)
+    end
     startNewGame()
 end
 
@@ -204,6 +221,7 @@ function love.update(dt)
 		asteroid.hit = false -- deactivate hit state
                 -- reached hits needed to break/destroy the asteroid?
 		if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+		    playRandomExplosionSound()
 		    player.score = player.score + asteroid.category * 10
 		    table.remove(asteroids, i)
 		    if asteroid.category > 1 then -- split new smaller asteroids
@@ -239,6 +257,7 @@ function love.update(dt)
 	for i, bullet in pairs(bullets) do
 	    if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
 		-- collision bullet x asteroid
+		playRandomHitSound()
 		table.remove(bullets, i)
 		player.score = player.score + 5
 		asteroid.hit = true
