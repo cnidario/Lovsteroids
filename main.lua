@@ -23,7 +23,7 @@ asteroidHitTimerMax = 0.75
 asteroidBlinkTimes = 7
 asteroidColors = { {r = 0.5, g = 0.75, b = 0}, {r = 0.7, g = 0.9, b = 0.2}, 
                    {r = 0.6, g = 0.6, b = 0.1}, {r = 0.8, g = 0.9, b = 0.5}, 
-		   {r = 0.7, g = 0.8, b = 0.8}, {r = 0.3, g = 0.8, b = 0.6} }
+		           {r = 0.7, g = 0.8, b = 0.8}, {r = 0.3, g = 0.8, b = 0.6} }
 
 -- sounds
 shootSound = nil
@@ -41,6 +41,11 @@ function lerp(start, finish, percentage)
     return start + (finish - start) * percentage
 end
 function clamp(val, min, max) return (val < min) and min or (val > max) and max or val end
+function vecInWorld(v) 
+    v.x = v.x % world.width
+    v.y = v.y % world.height
+    return v
+end
 
 -- Polygon collision testing using SAT theorem
 -- polygon = { pos, rotation, points }
@@ -97,8 +102,8 @@ end
 function asteroidRadius(category)
     local min, max = 25, 60
     max = 25 + (60 - 25)*category/3
-    local a = min + math.random()*(max - min)
-    local b = a + math.random()*(max - a)
+    local b = min + math.random()*(max - min)
+    local a = b + math.random()*(max - b)
     return a, b
 end
 function spawnAsteroid(pos, speed, ang_speed, category)
@@ -114,7 +119,9 @@ function spawnAsteroid(pos, speed, ang_speed, category)
 	local point = ellipse(p, a, b)
 	table.insert(points, point)
     end 
-    table.insert(asteroids, { pos = pos, speed = speed, rotation = 0, ang_speed = ang_speed, points = points, hit = false, category = category, numberOfHits = 0 })
+    table.insert(asteroids, { pos = pos, speed = speed, maxRadius = a,
+                              rotation = 0, ang_speed = ang_speed, points = points, 
+			      hit = false, category = category, numberOfHits = 0 })
 end
 function startNewGame()
     player.pos = player.startPos
@@ -141,9 +148,32 @@ function drawAsteroid(cam, asteroid)
     local asteroidBlink = asteroid.hit and (asteroid.hitTimer % (2*blinkTime)) <= blinkTime
     local mode = asteroidBlink and 'fill' or 'line'
     local color = asteroidBlink and asteroidColors[math.random(2, #asteroidColors)] or asteroidColors[1]
-    drawPolygon(asteroid.pos.x - cam.x, asteroid.pos.y - cam.y,
-                asteroid.rotation, asteroid.points, color,
-		mode)
+    local xx, yy = asteroid.pos.x - cam.x, asteroid.pos.y - cam.y
+    drawPolygon(xx, yy, asteroid.rotation, asteroid.points, color, mode)
+    if asteroid.pos.x - asteroid.maxRadius < 0 then
+        drawPolygon(xx + world.width, yy, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.x + asteroid.maxRadius > world.width then
+        drawPolygon(xx - world.width, yy, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.y - asteroid.maxRadius < 0 then
+        drawPolygon(xx, yy + world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.y + asteroid.maxRadius > world.height then
+        drawPolygon(xx, yy - world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.x - asteroid.maxRadius < 0 and asteroid.pos.y - asteroid.maxRadius < 0 then	
+        drawPolygon(xx + world.width, yy + world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.x - asteroid.maxRadius < 0 and asteroid.pos.y + asteroid.maxRadius > world.height then	
+        drawPolygon(xx + world.width, yy - world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.x - asteroid.maxRadius > world.width and asteroid.pos.y - asteroid.maxRadius < 0 then	
+        drawPolygon(xx - world.width, yy + world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
+    if asteroid.pos.x - asteroid.maxRadius > world.width and asteroid.pos.y - asteroid.maxRadius > world.height then	
+        drawPolygon(xx - world.width, yy - world.height, asteroid.rotation, asteroid.points, color, mode)
+    end
 end
 function drawBullet(x, y, rotation)
     drawPolygon(x, y, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1}, 'fill')
@@ -201,25 +231,25 @@ end
 function spawnAsteroidExplosion(pos, speed)
     local explosionSystem = asteroidExplosionSystem:clone()
     table.insert(explosions, { pos = pos:clone(), speed = speed, system = explosionSystem})
-    explosionSystem:emit(64)
+    explosionSystem:emit(256)
 end
 
 function initExplosionSystems()
     hitExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
-    hitExplosionSystem:setParticleLifetime(2, 5)
-    hitExplosionSystem:setEmitterLifetime(0.5)
+    hitExplosionSystem:setParticleLifetime(0.75, 1.75)
+    hitExplosionSystem:setEmitterLifetime(0.25)
     hitExplosionSystem:setEmissionRate(5)
     hitExplosionSystem:setSizeVariation(1)
     hitExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
     hitExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
     
     asteroidExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
-    asteroidExplosionSystem:setParticleLifetime(2, 3)
+    asteroidExplosionSystem:setParticleLifetime(1, 2)
     asteroidExplosionSystem:setEmitterLifetime(0.5)
-    asteroidExplosionSystem:setEmissionRate(32)
-    asteroidExplosionSystem:setSizeVariation(1)
+    asteroidExplosionSystem:setEmissionRate(512)
+    asteroidExplosionSystem:setSizeVariation(0)
     asteroidExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
-    asteroidExplosionSystem:setSpeed(300, 600)
+    asteroidExplosionSystem:setSpeed(400, 700)
     asteroidExplosionSystem:setSpread(2*math.pi)
     asteroidExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
 end
@@ -259,15 +289,13 @@ function love.update(dt)
     player.rotation = player.rotation % (2*math.pi)
     -- update position according speed
     player.pos = player.pos + player.speed*dt
-    player.pos.x = player.pos.x % world.width
-    player.pos.y = player.pos.y % world.height
+    vecInWorld(player.pos)
     -- asteroids
     for i = #asteroids, 1, -1 do
 	asteroid = asteroids[i]
         asteroid.pos = asteroid.pos + asteroid.speed*dt
 	asteroid.rotation = (asteroid.rotation + asteroid.ang_speed*dt) % (2*math.pi)
-	asteroid.pos.x = asteroid.pos.x % world.width
-	asteroid.pos.y = asteroid.pos.y % world.height
+    vecInWorld(asteroid.pos)
 
 	-- asteroid hit in the recent time?
 	if asteroid.hit then
@@ -301,8 +329,7 @@ function love.update(dt)
 	    table.remove(bullets, i)
 	end
         bullet.pos = bullet.pos + bullet.speed*dt
-	bullet.pos.x = bullet.pos.x % world.width
-	bullet.pos.y = bullet.pos.y % world.height
+        vecInWorld(bullet.pos)
     end
     -- Check collisions
     for i, asteroid in pairs(asteroids) do
@@ -347,10 +374,10 @@ function love.draw(dt)
     end
     love.graphics.setColor(1, 0.75, 0)
     love.graphics.print(string.format("Score: %d", player.score), 0, 0, 0, 1.5)
-    local cam = vec(-400, -400) + player.pos:clone()
+    local cam = vec(-400, -400) + player.pos
     drawPlayer(player.pos.x - cam.x, player.pos.y - cam.y, player.rotation)
     for i, asteroid in pairs(asteroids) do
-	drawAsteroid(cam, asteroid) 
+	drawAsteroid(cam, asteroid)
     end
     for i, bullet in pairs(bullets) do
         drawBullet(bullet.pos.x - cam.x, bullet.pos.y - cam.y, bullet.rotation)
