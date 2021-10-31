@@ -338,22 +338,22 @@ function love.update(dt)
             asteroid.hitTimer = asteroid.hitTimer - dt -- update countdown timer
             if asteroid.hitTimer <= 0 then
                 asteroid.hit = false -- deactivate hit state
-                -- reached hits needed to break/destroy the asteroid?
-                if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
-                    asteroidCount = asteroidCount - 1
-                    playRandomExplosionSound()
-                    spawnAsteroidExplosion(asteroid.pos, vec(0, 0))
-                    player.score = player.score + asteroid.category * 10
-                    table.remove(asteroids, i)
-                    if asteroid.category > 1 then -- split new smaller asteroids
-                        local numAsteroids = asteroid.category
-                        asteroidCount = asteroidCount + numAsteroids
-                        for j = 1, numAsteroids do
-                            local ang = 3*math.pi/8 + math.random(2*math.pi - 2*3*math.pi/8)
-                            local mag = asteroid.speed:getmag()*(math.random()*0.75 + 1.5)
-                            local speed = asteroid.speed:clone():norm():rotate(ang)*mag
-                            spawnAsteroid(vecInWorld(asteroid.pos + speed*0.25), speed, math.random()*math.pi*1.5, asteroid.category - 1)
-                        end
+            end
+            -- reached hits needed to break/destroy the asteroid?
+            if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+                asteroidCount = asteroidCount - 1
+                playRandomExplosionSound()
+                spawnAsteroidExplosion(asteroid.pos, vec(0, 0))
+                player.score = player.score + asteroid.category * 10
+                table.remove(asteroids, i)
+                if asteroid.category > 1 then -- split new smaller asteroids
+                    local numAsteroids = asteroid.category
+                    asteroidCount = asteroidCount + numAsteroids
+                    for j = 1, numAsteroids do
+                        local ang = 3*math.pi/8 + math.random(2*math.pi - 2*3*math.pi/8)
+                        local mag = asteroid.speed:getmag()*(math.random()*0.75 + 1.5)
+                        local speed = asteroid.speed:clone():norm():rotate(ang)*mag
+                        spawnAsteroid(vecInWorld(asteroid.pos + speed*0.25), speed, math.random()*math.pi*1.5, asteroid.category - 1)
                     end
                 end
             end
@@ -425,7 +425,7 @@ function love.draw(dt)
     end
     for i, explosion in pairs(explosions) do
         local explosionPos = toScreen(explosion.pos)
-        love.graphics.draw(explosion.system, explosionPos.x, explosionPos.y)
+        love.graphics.draw(explosion.system, explosionPos.x % world.width, explosionPos.y % world.height)
     end
 end
 
