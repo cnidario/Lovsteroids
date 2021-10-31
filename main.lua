@@ -248,46 +248,45 @@ function love.load()
     end
     loseSound = love.audio.newSource('sounds/lose.wav', 'static')
     -- particle system for explosion effects
-    local explosionImageData = love.image.newImageData(3, 3)
-    for i = 0, 2 do
-        for j = 0, 2 do
-            explosionImageData:setPixel(i, j, 0.95, 1, 0.07, 1)
-        end
-    end
-    explosionParticle = love.graphics.newImage(explosionImageData)
+    explosionParticle = love.graphics.newImage('assets/particle.png')
     initExplosionSystems()
     startNewGame()
 end
 
-function spawnHitExplosion(pos, speed)
+function spawnHitExplosion(pos, speed, bulletSpeed)
     local explosionSystem = hitExplosionSystem:clone()
-    table.insert(explosions, { pos = pos:clone(), speed = speed, system = explosionSystem})
-    explosionSystem:emit(32)
+    table.insert(explosions, { pos = pos:clone(), speed = -(bulletSpeed:clone():norm())*10, system = explosionSystem})
+    explosionSystem:emit(12)
 end
-function spawnAsteroidExplosion(pos, speed)
+function spawnAsteroidExplosion(pos, speed, category)
     local explosionSystem = asteroidExplosionSystem:clone()
     table.insert(explosions, { pos = pos:clone(), speed = speed, system = explosionSystem})
-    explosionSystem:emit(256)
+    explosionSystem:emit(64*category)
 end
 
 function initExplosionSystems()
     hitExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
-    hitExplosionSystem:setParticleLifetime(0.75, 1.75)
-    hitExplosionSystem:setEmitterLifetime(0.25)
+    hitExplosionSystem:setParticleLifetime(0.5, 0.75)
+    hitExplosionSystem:setEmitterLifetime(0.1)
     hitExplosionSystem:setEmissionRate(5)
-    hitExplosionSystem:setSizeVariation(1)
+    hitExplosionSystem:setSizeVariation(0.1)
     hitExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
-    hitExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
+    hitExplosionSystem:setSpeed(50, 100)
+    hitExplosionSystem:setColors(1, 130/255, 28/255, 1, 
+                                 1, 122/255, 92/255, 0.7, 
+                                 1, 178/255, 161/255, 0.6, 
+                                 192/255, 157/255, 149/255, 0.5,
+                                 179/255, 172/255, 171/255, 0.3)
 
-    asteroidExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 16)
+    asteroidExplosionSystem = love.graphics.newParticleSystem(explosionParticle, 512)
     asteroidExplosionSystem:setParticleLifetime(1, 2)
-    asteroidExplosionSystem:setEmitterLifetime(0.5)
-    asteroidExplosionSystem:setEmissionRate(512)
+    asteroidExplosionSystem:setEmitterLifetime(0.25)
+    asteroidExplosionSystem:setEmissionRate(128)
     asteroidExplosionSystem:setSizeVariation(0)
     asteroidExplosionSystem:setLinearAcceleration(-20, -20, 20, 20)
     asteroidExplosionSystem:setSpeed(400, 700)
     asteroidExplosionSystem:setSpread(2*math.pi)
-    asteroidExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0)
+    asteroidExplosionSystem:setColors(1, 1, 1, 1, 1, 1, 1, 0.2)
 end
 
 function love.update(dt)
@@ -340,10 +339,10 @@ function love.update(dt)
                 asteroid.hit = false -- deactivate hit state
             end
             -- reached hits needed to break/destroy the asteroid?
-            if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+            if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 7) then
                 asteroidCount = asteroidCount - 1
                 playRandomExplosionSound()
-                spawnAsteroidExplosion(asteroid.pos, vec(0, 0))
+                spawnAsteroidExplosion(asteroid.pos, vec(0, 0), asteroid.category)
                 player.score = player.score + asteroid.category * 10
                 table.remove(asteroids, i)
                 if asteroid.category > 1 then -- split new smaller asteroids
@@ -379,7 +378,7 @@ function love.update(dt)
             if checkCollisionSAT(asteroid, { pos = bullet.pos, rotation = bullet.rotation, points = bulletPolygonPoints }) then
                 -- collision bullet x asteroid
                 playRandomHitSound()
-                spawnHitExplosion(bullet.pos, asteroid.speed)
+                spawnHitExplosion(bullet.pos, asteroid.speed, bullet.speed)
                 table.remove(bullets, i)
                 player.score = player.score + 5
                 asteroid.hit = true
@@ -393,6 +392,7 @@ function love.update(dt)
     -- effects of explosions 
     for i = #explosions, 1, -1 do
         local explosion = explosions[i]
+        explosion.pos = explosion.pos + explosion.speed*dt
         explosion.system:update(dt)
         explosion.pos = vecInWorld(explosion.pos + explosion.speed*dt)
         if explosion.system:getCount() == 0 then
