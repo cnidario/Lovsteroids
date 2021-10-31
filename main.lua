@@ -30,6 +30,8 @@ asteroidBlinkTimes = 7
 asteroidColors = { {r = 0.5, g = 0.75, b = 0}, {r = 0.7, g = 0.9, b = 0.2}, 
                    {r = 0.6, g = 0.6, b = 0.1}, {r = 0.8, g = 0.9, b = 0.5}, 
                    {r = 0.7, g = 0.8, b = 0.8}, {r = 0.3, g = 0.8, b = 0.6} }
+asteroidInitialCount = 20
+asteroidCount = nil
 
 -- sounds
 shootSound = nil
@@ -60,28 +62,8 @@ function intoRect(p, x0, y0, x1, y1)
     return p.x >= x0 and p.x < x1 and p.y >= y0 and p.y < y1
 end
 function toScreen(worldPos)
-    -- multiply viewports by 4 so we have 4 scanning the world at equivalent mod positions
-    -- vorigin, vorigin - (world.width, 0), vorigin - (0, world.height) and vorigin - (world.width, world.height)
-    -- because the viewport has always positive into the world coordinates we only need these mirrors
-    -- and not the positives
     local vorigin = viewportOrigin()
-    local p1 = worldPos - vorigin
-    local p2 = worldPos - vorigin + vec(world.width, 0)
-    local p3 = worldPos - vorigin + vec(0, world.height)
-    local p4 = worldPos - vorigin + vec(world.width, world.height)
-    -- we 'draw' (so on screen coords) anyone that fits into screen coords
-    if intoRect(p1, 0, 0, viewport.size.x, viewport.size.y) then
-        return p1
-    elseif intoRect(p2, 0, 0, viewport.size.x, viewport.size.y) then
-        return p2
-    elseif intoRect(p3, 0, 0, viewport.size.x, viewport.size.y) then
-        return p3
-    elseif intoRect(p4, 0, 0, viewport.size.x, viewport.size.y) then
-        return p4
-    end
-    -- else this not fits...
-    -- print('MAYBE-WARN this points is not going to be drawed ', worldPos)
-    return p1
+    return worldPos - vorigin
 end
 function initViewport()
     viewport.size = vec(love.graphics.getWidth(), love.graphics.getHeight())
@@ -94,14 +76,28 @@ function updateViewport(dt)
     -- simply chase player
     viewport.cameraPos = player.pos:clone()
 end
+-- returns a vector if its visible, false in other case
+-- the vector must be added to asteroid position to call toScreen and get screen coordinates
 function isVisibleAsteroid(asteroid)
-    local ax1, ax2 = asteroid.pos.x - asteroid.maxRadius, asteroid.pos.x + asteroid.maxRadius
-    local ay1, ay2 = asteroid.pos.y - asteroid.maxRadius, asteroid.pos.y + asteroid.maxRadius
+    local R = asteroid.maxRadius
+    local ax1, ax2 = asteroid.pos.x - R, asteroid.pos.x + R
+    local ay1, ay2 = asteroid.pos.y - R, asteroid.pos.y + R
     local vorigin = viewportOrigin()
     local x1, x2 = vorigin.x, vorigin.x + viewport.size.x
     local y1, y2 = vorigin.y, vorigin.y + viewport.size.y
-    return segmentOverlap(ax1, ax2, x1, x2) or
-    segmentOverlap(ay1, ay2, y1, y2)
+    return (segmentOverlap(ax1, ax2, x1, x2) and vec(0, 0)) or
+           (segmentOverlap(ay1, ay2, y1, y2) and vec(0, 0)) or
+           -- wrap world cases, not very clear, i know :/
+           (x2 + R > world.width and segmentOverlap(ax1, ax2, x1 - world.width, x2 - world.width) and vec(world.width, 0)) or
+           (y2 + R > world.height and segmentOverlap(ay1, ay2, y1 - world.height, y2 - world.height) and vec(0, world.height)) or
+           (x1 < R and segmentOverlap(ax1 - world.width, ax2 - world.width, x1, x2) and vec(-world.width, 0)) or
+           (y1 < R and segmentOverlap(ay1 - world.height, ay2 - world.height, y1, y2) and vec(0, -world.height)) or
+           (x2 + R > world.width and y2 + R > world.height and 
+                (segmentOverlap(ax1, ax2, x1 - world.width, x2 - world.width) and 
+                 segmentOverlap(ay1, ay2, y1 - world.height, y2 - world.height)) and vec(world.width, world.height)) or
+           (x1 < R and y1 < R and 
+                (segmentOverlap(ax1 - world.width, ax2 - world.width, x1, x2) and
+                 segmentOverlap(ay1 - world.height, ay2 - world.height, y1, y2)) and vec(-world.width, -world.height))
 end
 
 -- Check if two horizontal segments overlap
@@ -158,7 +154,7 @@ end
 -- Spawn an asteroid with random values
 function spawnInitialAsteroid()
     -- Make a random position outside a circle centered at player start position and radius 100 
-    local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*500)
+    local pos = player.startPos + vec.fromAngle(math.random()*2*math.pi)*(100 + math.random()*(world.width/2 - 100))
     local speed = vec.fromAngle(math.random()*2*math.pi):setmag(10 + math.random()*140)
     local ang_speed = math.random()*math.pi
     spawnAsteroid(pos, speed, ang_speed, 1 + math.floor(math.random()*3))
@@ -199,13 +195,13 @@ function startNewGame()
     spawnInitialAsteroids()
 end
 function spawnInitialAsteroids()
-    for i = 1,20 do
+    for i = 1,asteroidInitialCount do
         spawnInitialAsteroid()
     end
+    asteroidCount = asteroidInitialCount
 end
 function drawPlayer(pos, rotation)
-    print('drawPlayer @ ', pos)
-    drawPolygon(pos, rotation, playerPolygonPoints, {r = 0, g = 0.25, b = 0.75})
+    drawPolygon(vec(pos.x % world.width, pos.y % world.height), rotation, playerPolygonPoints, {r = 0, g = 0.25, b = 0.75})
 end
 function drawAsteroid(pos, asteroid)
     -- blink alterning fill and line modes
@@ -213,10 +209,10 @@ function drawAsteroid(pos, asteroid)
     local asteroidBlink = asteroid.hit and (asteroid.hitTimer % (2*blinkTime)) <= blinkTime
     local mode = asteroidBlink and 'fill' or 'line'
     local color = asteroidBlink and asteroidColors[math.random(2, #asteroidColors)] or asteroidColors[1]
-    drawPolygon(pos, asteroid.rotation, asteroid.points, color, mode)
+    drawPolygon(vec(pos.x % world.width, pos.y % world.height), asteroid.rotation, asteroid.points, color, mode)
 end
 function drawBullet(pos, rotation)
-    drawPolygon(pos, rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1}, 'fill')
+    drawPolygon(vec(pos.x % world.width, pos.y % world.height), rotation, bulletPolygonPoints, {r = 1, g = 1, b = 1}, 'fill')
 end
 function drawPolygon(pos, rotation, points, color, mode)
     mode = mode or 'line'
@@ -342,12 +338,14 @@ function love.update(dt)
                 asteroid.hit = false -- deactivate hit state
                 -- reached hits needed to break/destroy the asteroid?
                 if asteroid.numberOfHits >= 1 + math.floor(asteroid.category * 1.5) then
+                    asteroidCount = asteroidCount - 1
                     playRandomExplosionSound()
                     spawnAsteroidExplosion(asteroid.pos, vec(0, 0))
                     player.score = player.score + asteroid.category * 10
                     table.remove(asteroids, i)
                     if asteroid.category > 1 then -- split new smaller asteroids
                         local numAsteroids = asteroid.category
+                        asteroidCount = asteroidCount + numAsteroids
                         for j = 1, numAsteroids do
                             local ang = 3*math.pi/8 + math.random(2*math.pi - 2*3*math.pi/8)
                             local mag = asteroid.speed:getmag()*(math.random()*0.75 + 1.5)
@@ -400,7 +398,6 @@ function love.update(dt)
         end
     end
     updateViewport(dt)
-    print('player pos = ', player.pos, ' viewportOrigin = ', viewportOrigin())
 end
 
 function love.draw(dt)
@@ -413,10 +410,12 @@ function love.draw(dt)
     end
     love.graphics.setColor(1, 0.75, 0)
     love.graphics.print(string.format("Score: %d", player.score), 0, 0, 0, 1.5)
+    love.graphics.print(string.format("Asteroids: %d", asteroidCount), 0, 20, 0, 1.5)
     drawPlayer(toScreen(player.pos), player.rotation)
     for i, asteroid in pairs(asteroids) do
-        if isVisibleAsteroid(asteroid) then
-            drawAsteroid(toScreen(asteroid.pos), asteroid)
+        local ds = isVisibleAsteroid(asteroid)
+        if ds then
+            drawAsteroid(toScreen(asteroid.pos + ds), asteroid)
         end
     end
     for i, bullet in pairs(bullets) do
