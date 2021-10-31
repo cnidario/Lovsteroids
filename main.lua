@@ -316,7 +316,9 @@ function love.update(dt)
         bulletCounter = bulletCounter + 1
         local m = math.random(3,9)
         local ds = vec(player.pos.y, -player.pos.x):norm() * m * (bulletCounter % 2 == 0 and 1 or -1)
-        local bullet = { pos = vecInWorld(player.pos + ds), speed = vec.fromAngle(player.rotation)*300, rotation = player.rotation, live = 0 }
+        local bullet = { pos = vecInWorld(player.pos + ds)
+                       , speed = player.speed:clone() + vec.fromAngle(player.rotation)*300
+                       , rotation = player.rotation, live = 0 }
         table.insert(bullets, bullet)
         shootSound:clone():play()
         bulletTimer = bulletTimerMax
